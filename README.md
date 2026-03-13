@@ -56,14 +56,14 @@ Think of it like a more intelligent and autonomous “Claw” robot for software
 
 ## **Architecture**
 
-```mermaid
+```
 flowchart TB
     %%-----------------------------
     %% Local PC Body
     %%-----------------------------
     subgraph PC_Body["Local PC Body"]
         direction TB
-        A[Screen Capture] -->|Frames / Regions| B[Local Agent Client]
+        A[Screen Capture] -->|Frames & Regions| B[Local Agent Client]
         C[Audio Input] -->|Audio Stream| B
         B -->|Mouse / Keyboard / TTS| D[Apps / GUI]
         E[Local Storage] --> B
@@ -87,8 +87,9 @@ flowchart TB
     %%-----------------------------
     %% Communication
     %%-----------------------------
-    B -->|Compressed frames, audio, events| Cloud_Brain
-    Cloud_Brain -->|JSON commands (click, type, screenshot, TTS)| B
+    B -->|Compressed frames & audio events| Cloud_Brain
+    Cloud_Brain -->|"JSON commands: click, type, screenshot, TTS"| B
+
 ````
 
 **Description of Layers:**
