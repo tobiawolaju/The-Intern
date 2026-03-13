@@ -56,7 +56,8 @@ Think of it like a more intelligent and autonomous “Claw” robot for software
 
 ## **Architecture**
 
-```
+
+```mermaid
 flowchart TB
     %%-----------------------------
     %% Local PC Body
