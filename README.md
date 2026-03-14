@@ -12,7 +12,7 @@
 
 It acts as your **eyes, ears, and hands** when you're away.
 
-Instead of interacting only with APIs or isolated software environments, The Intern interacts directly with **real desktop applications through their graphical interfaces**, just like a human user.
+Instead of interacting only with APIs or isolated environments, The Intern interacts directly with **desktop applications through their graphical interfaces**, just like a human user.
 
 You give it **high-level instructions**, and it will:
 
@@ -32,7 +32,7 @@ The system combines:
 
 Think of it as:
 
-> a digital intern that can operate your computer while you're away.
+> a digital intern that can operate your computer while you're gone.
 
 ---
 
@@ -40,15 +40,11 @@ Think of it as:
 
 ## Screen Perception
 
-The Intern continuously observes the desktop environment through screen capture.
-
-This allows the agent to:
+The Intern continuously observes the desktop through screen capture, allowing it to:
 
 * understand UI layouts
 * detect application states
-* identify buttons and controls
-* read on-screen text
-* recognize notifications
+* identify buttons, menus, and messages
 
 ---
 
@@ -60,7 +56,7 @@ The Intern interacts with applications using:
 * keyboard input
 * window control
 
-Because it works through the **GUI layer**, it can operate almost any application including:
+Supports almost any application including:
 
 * browsers
 * messaging apps
@@ -72,7 +68,7 @@ Because it works through the **GUI layer**, it can operate almost any applicatio
 
 ## Autonomous Task Execution
 
-Users can give **high-level goals**, such as:
+High-level goals examples:
 
 ```
 Check WhatsApp and summarize unread messages
@@ -80,13 +76,13 @@ Deploy the latest build
 Send screenshots of the analytics dashboard
 ```
 
-The agent planner converts these goals into actionable steps.
+The planner breaks these goals into actionable steps.
 
 ---
 
-## Messaging and Reports
+## Messaging & Reports
 
-The Intern can respond with:
+The Intern can reply with:
 
 * text summaries
 * screenshots
@@ -97,9 +93,7 @@ The Intern can respond with:
 
 ## Multi-Device Operation
 
-Multiple computers can run **local agent clients** connected to a shared cloud brain.
-
-This enables:
+Multiple computers can run **local agent clients** connected to a shared cloud brain, allowing:
 
 * remote operation
 * multi-machine orchestration
@@ -118,20 +112,32 @@ The Intern can call external AI tools for:
 
 ---
 
-# System Architecture
+# Frontend
 
-The Intern consists of **two primary systems**:
+The new `/frontend` folder provides **two main features**:
 
-1. **Local PC Body**
-2. **Cloud Brain**
+1. **Chat Interface**
 
-The local system performs **perception and execution**.
+   * Talk directly with the agent in real time.
+   * Supports text and voice input/output.
 
-The cloud performs **reasoning, planning, and memory management**.
+2. **Download Page**
+
+   * Download the **Local Agent executables** for Eyes & Hands.
+   * Users can install the agent locally and connect it to the cloud brain.
 
 ---
 
-# Architecture Diagram
+# System Architecture
+
+The system consists of **two main components**:
+
+1. **Local PC Body** – handles perception & execution
+2. **Cloud Brain** – handles reasoning, planning, and memory
+
+---
+
+## Architecture Diagram
 
 ```mermaid
 flowchart TB
@@ -141,13 +147,11 @@ A[Screen Capture]
 B[Audio Input]
 C[Local Agent Client]
 D[Desktop Applications]
-E[Docker Sandbox]
 F[Config System]
 
 A --> C
 B --> C
 C --> D
-E --> C
 F --> C
 end
 
@@ -174,209 +178,45 @@ K --> M
 
 ---
 
-# Agent Cognition Loop
-
-The Intern operates using a continuous **Perception → Reasoning → Planning → Action loop**.
-
-This loop enables the agent to adapt to changing UI states.
-
----
-
-## Cognition Loop Diagram
-
-```mermaid
-flowchart LR
-
-A[Perception]
-B[Multimodal Understanding]
-C[Agent Reasoning]
-D[Task Planning]
-E[Tool Selection]
-F[Action Execution]
-G[Environment Update]
-
-A --> B
-B --> C
-C --> D
-D --> E
-E --> F
-F --> G
-G --> A
-```
-
----
-
-# System Data Flow
-
-The following diagram shows how information moves between the local system and the cloud brain.
-
-```mermaid
-flowchart LR
-
-User[User Instruction]
-
-Screen[Screen Frames]
-Audio[Audio Input]
-
-LocalAgent[Local Agent Client]
-
-CloudBrain[Cloud Brain]
-
-GeminiVision[Gemini Multimodal]
-Planner[Task Planner]
-Tools[Tool System]
-Memory[MariaDB Memory]
-
-Actions[UI Actions]
-
-User --> LocalAgent
-
-Screen --> LocalAgent
-Audio --> LocalAgent
-
-LocalAgent --> CloudBrain
-
-CloudBrain --> GeminiVision
-GeminiVision --> Planner
-Planner --> Tools
-Planner --> Memory
-
-Tools --> Actions
-Actions --> LocalAgent
-```
-
----
-
 # System Components
 
 ## Local PC Body
 
-The **local client** runs directly on the user's machine.
-
 Responsibilities:
 
-* capture screen data
-* process audio
+* capture screen & audio
 * execute UI actions
 * communicate with the cloud brain
 
-### Eyes
+Modules:
 
-Captures screen frames and sends them to the cloud.
-
-### Ears
-
-Handles audio input and optional speech transcription.
-
-### Hands
-
-Executes actions such as:
-
-* mouse clicks
-* keyboard typing
-* scrolling
-* opening applications
-
-### Mouth
-
-Produces text or speech responses.
-
-### Local Agent Client
-
-Coordinates all local modules and communicates with the cloud brain.
+* **Eyes** – screen capture
+* **Ears** – audio input & optional STT
+* **Hands** – mouse/keyboard automation
+* **Mouth** – text or speech responses
+* **Local Agent Client** – orchestrates local modules
 
 ---
 
 ## Cloud Brain
 
-The cloud system hosts the agent's reasoning capabilities.
+Handles reasoning, planning, and memory.
 
----
+Modules:
 
-### ADK Agent
-
-The Intern is implemented as a **Google ADK agent**, responsible for orchestrating:
-
-* reasoning
-* tool usage
-* task planning
-
----
-
-### Agent Persona
-
-Defines the agent's behavioral style.
-
-Examples:
-
-* prefer screenshots when explaining UI
-* confirm destructive actions
-* provide concise reports
-
----
-
-### Multimodal Reasoning
-
-Powered by **Gemini multimodal models**.
-
-Used to:
-
-* analyze screenshots
-* detect UI components
-* interpret layout structures
-
----
-
-### Dialogue Reasoning
-
-Powered by **Gemini Live**.
-
-Used for:
-
-* voice communication
-* conversational interaction
-* interruption handling
-
----
-
-### Task Planner
-
-Responsible for:
-
-* decomposing goals into steps
-* scheduling tasks
-* managing execution state
-
----
-
-### Tool System
-
-Tools extend the agent's capabilities.
-
-Examples include:
-
-* screenshot tool
-* UI interaction tool
-* search tool
-* code generation tool
-
----
-
-### Memory System
-
-The Intern maintains several memory layers.
-
-| Memory Type       | Purpose             |
-| ----------------- | ------------------- |
-| Short-Term Memory | recent context      |
-| Long-Term Memory  | tasks and knowledge |
-| Vector Memory     | semantic search     |
+* **ADK Agent Core** – orchestrates reasoning and task execution
+* **Agent Persona** – defines behavior, tone, and reporting style
+* **Multimodal Reasoning** – interprets screen images & UI elements
+* **Dialogue Reasoning** – handles chat & voice conversation via Gemini Live
+* **Task Planner** – decomposes goals into steps and schedules actions
+* **Tool System** – provides tools like screenshot, code generation, search
+* **Memory System** – short-term, long-term, and vector memory
 
 ---
 
 # Memory Database
 
-MariaDB stores persistent agent memory.
+MariaDB stores persistent memory.
 
 Example schema:
 
@@ -410,8 +250,6 @@ CREATE TABLE action_logs (
 
 # Configuration
 
-The Intern uses configuration files to define interaction behavior.
-
 Example `config.json`:
 
 ```json
@@ -441,22 +279,19 @@ Example `config.json`:
 # Workflow
 
 ```
-User sends instruction
+User sends instruction (via chat frontend)
         |
         v
-Local PC captures screen
+Local PC captures screen/audio
         |
         v
-Cloud brain interprets UI
-        |
-        v
-Planner generates actions
+Cloud brain interprets UI & plans
         |
         v
 Local agent executes actions
         |
         v
-Agent returns screenshots or report
+Agent sends screenshots/reports back to chat frontend
 ```
 
 ---
@@ -466,7 +301,6 @@ Agent returns screenshots or report
 ## Requirements
 
 * Node.js 20+
-* Docker
 * MariaDB
 * Google Gemini API
 * Google ADK
@@ -475,7 +309,7 @@ Agent returns screenshots or report
 
 ## Clone Repository
 
-```
+```bash
 git clone https://github.com/yourusername/The-Intern.git
 cd The-Intern
 ```
@@ -484,33 +318,35 @@ cd The-Intern
 
 ## Install Dependencies
 
-```
+```bash
 npm install
 ```
 
 ---
 
-## Start Services
+## Run Services
 
+Start **cloud brain**:
+
+```bash
+npm run start-brain
 ```
-docker-compose up -d
-```
 
----
+Start **local client**:
 
-## Run Agent
-
-Start local client:
-
-```
+```bash
 npm run start-client
 ```
 
-Start cloud brain:
+Start **frontend**:
 
+```bash
+cd frontend
+npm run start
 ```
-npm run start-brain
-```
+
+* Chat with your agent at `/chat`
+* Download local agent executable at `/download`
 
 ---
 
@@ -539,6 +375,11 @@ cloud/
  ├ memory/
  └ brain_server.js
 
+frontend/
+ ├ chat/        # web chat interface
+ ├ download/    # local agent download page
+ └ index.html
+
 config/
  ├ config.json
  └ agent_config.json
@@ -549,10 +390,6 @@ db/
 
 logs/
 
-docker/
- └ Dockerfile
-
-docker-compose.yml
 package.json
 README.md
 ```
@@ -561,25 +398,20 @@ README.md
 
 # Security
 
-The Intern runs inside a **sandboxed execution environment**.
+**Note:** Hackathon prototype – no sandboxed container execution.
 
-Security mechanisms include:
-
-* Docker isolation
-* encrypted communication
-* restricted filesystem access
-* optional human confirmation for sensitive actions
+* Local agents run directly on the machine
+* Communication is assumed to be trusted for demo purposes
+* Sensitive actions may not have full verification
 
 ---
 
 # Future Roadmap
 
-Planned improvements include:
-
 * multi-device orchestration
 * autonomous workflow learning
-* improved UI element detection
-* reinforcement learning for UI interaction
+* advanced UI element detection
+* reinforcement learning for interactions
 * collaborative multi-agent systems
 * monitoring dashboards
 
