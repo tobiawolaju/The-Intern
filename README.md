@@ -142,17 +142,18 @@ The system consists of **two main components**:
 ```mermaid
 flowchart TB
 
+subgraph FRONTEND["Frontend Interface"]
+U[User]
+CHAT[Chat Interface]
+DL[Download Page]
+end
+
 subgraph PC["Local PC Body"]
 A[Screen Capture]
 B[Audio Input]
 C[Local Agent Client]
 D[Desktop Applications]
 F[Config System]
-
-A --> C
-B --> C
-C --> D
-F --> C
 end
 
 subgraph CLOUD["Cloud Brain"]
@@ -165,6 +166,15 @@ L[Tool System]
 M[Memory System]
 end
 
+U --> CHAT
+CHAT --> CLOUD
+DL --> C
+
+A --> C
+B --> C
+C --> D
+F --> C
+
 C -->|screen frames & events| CLOUD
 CLOUD -->|action commands| C
 
@@ -174,6 +184,8 @@ G --> J
 G --> K
 G --> L
 K --> M
+
+
 ```
 
 ---
