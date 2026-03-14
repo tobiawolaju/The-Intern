@@ -306,6 +306,49 @@ Local agent executes actions
 Agent sends screenshots/reports back to chat frontend
 ```
 
+# System Data Flow
+
+```mermaid
+flowchart LR
+
+User[User]
+
+ChatUI[Frontend Chat]
+Download[Frontend Download Page]
+
+LocalAgent[Local Agent Client]
+
+Screen[Screen Capture]
+Audio[Audio Input]
+
+CloudBrain[Cloud Brain]
+
+Vision[Gemini Multimodal]
+Planner[Task Planner]
+Tools[Tool System]
+Memory[MariaDB Memory]
+
+Actions[Mouse/Keyboard Actions]
+
+User --> ChatUI
+ChatUI --> CloudBrain
+
+Download --> LocalAgent
+
+Screen --> LocalAgent
+Audio --> LocalAgent
+
+LocalAgent --> CloudBrain
+
+CloudBrain --> Vision
+Vision --> Planner
+Planner --> Tools
+Planner --> Memory
+
+Tools --> Actions
+Actions --> LocalAgent
+
+
 ---
 
 # Installation
@@ -317,6 +360,7 @@ Agent sends screenshots/reports back to chat frontend
 * Google Gemini API
 * Google ADK
 
+```
 ---
 
 ## Clone Repository
