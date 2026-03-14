@@ -93,11 +93,11 @@ The Intern can reply with:
 
 ## Multi-Device Operation
 
-Multiple computers can run **local agent clients** connected to a shared cloud brain, allowing:
+Multiple computers can run **local agent clients** connected to a shared cloud brain.
 
-* remote operation
-* multi-machine orchestration
-* centralized reasoning
+For the hackathon prototype we currently support:
+
+**Windows local agents only.**
 
 ---
 
@@ -114,30 +114,50 @@ The Intern can call external AI tools for:
 
 # Frontend
 
-The new `/frontend` folder provides **two main features**:
+The `/frontend` folder provides **two primary interfaces**.
 
-1. **Chat Interface**
+### Chat Interface
 
-   * Talk directly with the agent in real time.
-   * Supports text and voice input/output.
+Located at:
 
-2. **Download Page**
+```
+/frontend/chat
+```
 
-   * Download the **Local Agent executables** for Eyes & Hands.
-   * Users can install the agent locally and connect it to the cloud brain.
+Allows users to:
+
+* talk directly with the agent
+* send instructions
+* receive screenshots
+* view reports and summaries
+
+---
+
+### Download Page
+
+Located at:
+
+```
+/frontend/download
+```
+
+Users can download the **Windows Local Agent**.
+
+The downloaded executable runs the **Rust-based Local PC Body** that connects to the cloud brain.
 
 ---
 
 # System Architecture
 
-The system consists of **two main components**:
+The Intern consists of **three main systems**:
 
-1. **Local PC Body** – handles perception & execution
-2. **Cloud Brain** – handles reasoning, planning, and memory
+1. **Frontend Interface**
+2. **Windows Local PC Body (Rust Agent)**
+3. **Cloud Brain**
 
 ---
 
-## Architecture Diagram
+# Architecture Diagram
 
 ```mermaid
 flowchart TB
@@ -148,10 +168,10 @@ CHAT[Chat Interface]
 DL[Download Page]
 end
 
-subgraph PC["Local PC Body"]
+subgraph PC["Windows Local PC Body (Rust)"]
 A[Screen Capture]
 B[Audio Input]
-C[Local Agent Client]
+C[Local Rust Agent]
 D[Desktop Applications]
 F[Config System]
 end
@@ -184,51 +204,168 @@ G --> J
 G --> K
 G --> L
 K --> M
-
-
 ```
 
 ---
 
 # System Components
 
-## Local PC Body
+## Windows Local PC Body (Rust)
+
+The Local Agent runs as a **native Rust application** on Windows.
 
 Responsibilities:
 
-* capture screen & audio
-* execute UI actions
+* capture screen frames
+* capture optional audio
+* execute mouse & keyboard actions
 * communicate with the cloud brain
 
-Modules:
+---
 
-* **Eyes** – screen capture
-* **Ears** – audio input & optional STT
-* **Hands** – mouse/keyboard automation
-* **Mouth** – text or speech responses
-* **Local Agent Client** – orchestrates local modules
+### Eyes
+
+Captures screen frames from the Windows desktop.
+
+---
+
+### Ears
+
+Handles microphone input (optional).
+
+---
+
+### Hands
+
+Controls:
+
+* mouse
+* keyboard
+* window interaction
+
+---
+
+### Mouth
+
+Handles:
+
+* text responses
+* optional voice output
+
+---
+
+### Local Rust Agent
+
+Coordinates all modules and communicates with the **Cloud Brain API**.
 
 ---
 
 ## Cloud Brain
 
-Handles reasoning, planning, and memory.
+The cloud system hosts the AI reasoning components.
 
-Modules:
+Modules include:
 
-* **ADK Agent Core** – orchestrates reasoning and task execution
-* **Agent Persona** – defines behavior, tone, and reporting style
-* **Multimodal Reasoning** – interprets screen images & UI elements
-* **Dialogue Reasoning** – handles chat & voice conversation via Gemini Live
-* **Task Planner** – decomposes goals into steps and schedules actions
-* **Tool System** – provides tools like screenshot, code generation, search
-* **Memory System** – short-term, long-term, and vector memory
+### ADK Agent Core
+
+Responsible for:
+
+* orchestrating reasoning
+* managing tools
+* executing tasks
+
+---
+
+### Agent Persona
+
+Defines agent behavior:
+
+* reporting style
+* safety constraints
+* decision rules
+
+Example behaviors:
+
+* prefer screenshots when explaining UI
+* confirm destructive actions
+* summarize long outputs
+
+---
+
+### Multimodal Reasoning
+
+Powered by **Gemini Multimodal**.
+
+Used to interpret:
+
+* screenshots
+* UI layouts
+* visual context
+
+---
+
+### Dialogue Reasoning
+
+Powered by **Gemini Live**.
+
+Handles:
+
+* real-time chat
+* voice conversation
+* interruptions
+
+---
+
+### Task Planner
+
+Breaks down goals into actions.
+
+Example:
+
+Goal:
+
+```
+Check WhatsApp and summarize unread messages
+```
+
+Planner output:
+
+```
+1. open WhatsApp
+2. detect unread chats
+3. read messages
+4. summarize messages
+5. send report
+```
+
+---
+
+### Tool System
+
+Provides tools such as:
+
+* screenshot tool
+* UI control tool
+* search tool
+* code generation tool
+
+---
+
+### Memory System
+
+The Intern maintains several memory layers.
+
+| Memory Type       | Purpose             |
+| ----------------- | ------------------- |
+| Short-Term Memory | recent UI context   |
+| Long-Term Memory  | tasks and knowledge |
+| Vector Memory     | semantic search     |
 
 ---
 
 # Memory Database
 
-MariaDB stores persistent memory.
+MariaDB stores persistent agent memory.
 
 Example schema:
 
@@ -291,21 +428,28 @@ Example `config.json`:
 # Workflow
 
 ```
-User sends instruction (via chat frontend)
+User sends instruction via chat
         |
         v
-Local PC captures screen/audio
+Cloud Brain interprets instruction
         |
         v
-Cloud brain interprets UI & plans
+Local Rust Agent captures screen
+        |
+        v
+Gemini analyzes UI
+        |
+        v
+Planner generates actions
         |
         v
 Local agent executes actions
         |
         v
-Agent sends screenshots/reports back to chat frontend
+Agent returns screenshots or reports
 ```
 
+---
 
 # System Data Flow
 
@@ -317,7 +461,7 @@ User[User]
 ChatUI[Frontend Chat]
 Download[Frontend Download Page]
 
-LocalAgent[Local Agent Client]
+LocalAgent[Windows Rust Agent]
 
 Screen[Screen Capture]
 Audio[Audio Input]
@@ -348,8 +492,9 @@ Planner --> Memory
 
 Tools --> Actions
 Actions --> LocalAgent
-
+CloudBrain --> ChatUI
 ```
+
 ---
 
 # Installation
@@ -357,10 +502,10 @@ Actions --> LocalAgent
 ## Requirements
 
 * Node.js 20+
+* Rust
 * MariaDB
 * Google Gemini API
 * Google ADK
-
 
 ---
 
@@ -373,37 +518,45 @@ cd The-Intern
 
 ---
 
-## Install Dependencies
+## Install Cloud Dependencies
 
-```bash
+```
 npm install
 ```
 
 ---
 
-## Run Services
+## Run Cloud Brain
 
-Start **cloud brain**:
-
-```bash
+```
 npm run start-brain
 ```
 
-Start **local client**:
+---
 
-```bash
-npm run start-client
+## Run Frontend
+
 ```
-
-Start **frontend**:
-
-```bash
 cd frontend
+npm install
 npm run start
 ```
 
-* Chat with your agent at `/chat`
-* Download local agent executable at `/download`
+---
+
+## Run Windows Local Agent
+
+```
+cd client-rust
+cargo build --release
+cargo run
+```
+
+Or download the **prebuilt Windows executable** from:
+
+```
+/frontend/download
+```
 
 ---
 
@@ -412,39 +565,33 @@ npm run start
 ```
 The-Intern/
 
-client/
- ├ eyes/
- ├ ears/
- ├ hands/
- ├ mouth/
- ├ perception_router.js
- └ local_agent.js
+client-rust/
+ ├ Cargo.toml
+ └ src/
+     ├ main.rs
+     ├ screen/
+     ├ input/
+     ├ audio/
+     ├ network/
+     └ executor/
 
 cloud/
  ├ agents/
  │  ├ intern_agent.js
  │  └ persona.js
  ├ reasoning/
- │  ├ multimodal_reasoner.js
- │  └ dialogue_reasoner.js
  ├ tools/
  ├ planner/
  ├ memory/
  └ brain_server.js
 
 frontend/
- ├ chat/        # web chat interface
- ├ download/    # local agent download page
+ ├ chat/
+ ├ download/
  └ index.html
 
 config/
- ├ config.json
- └ agent_config.json
-
 db/
- ├ schema.sql
- └ migrations/
-
 logs/
 
 package.json
@@ -455,20 +602,28 @@ README.md
 
 # Security
 
-**Note:** Hackathon prototype – no sandboxed container execution.
+**Hackathon Prototype**
 
-* Local agents run directly on the machine
-* Communication is assumed to be trusted for demo purposes
-* Sensitive actions may not have full verification
+For rapid development:
+
+* local agents run directly on the machine
+* no sandbox/container isolation
+* trusted environment assumed
+
+Production versions would include:
+
+* sandboxed execution
+* permission layers
+* secure device authentication
 
 ---
 
 # Future Roadmap
 
+* Linux & macOS local agents
 * multi-device orchestration
-* autonomous workflow learning
+* reinforcement learning for UI navigation
 * advanced UI element detection
-* reinforcement learning for interactions
 * collaborative multi-agent systems
 * monitoring dashboards
 
