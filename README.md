@@ -306,6 +306,7 @@ Local agent executes actions
 Agent sends screenshots/reports back to chat frontend
 ```
 
+
 # System Data Flow
 
 ```mermaid
@@ -348,7 +349,7 @@ Planner --> Memory
 Tools --> Actions
 Actions --> LocalAgent
 
-
+```
 ---
 
 # Installation
@@ -360,7 +361,7 @@ Actions --> LocalAgent
 * Google Gemini API
 * Google ADK
 
-```
+
 ---
 
 ## Clone Repository
