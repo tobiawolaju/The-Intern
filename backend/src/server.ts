@@ -3,8 +3,6 @@ import { WebSocket, WebSocketServer } from "ws";
 
 const PORT = Number(process.env.BACKEND_PORT || 8787);
 const LOCAL_AGENT_WS = process.env.LOCAL_AGENT_WS || "ws://127.0.0.1:8765";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
 const SCREENSHOT_PATH =
   process.env.SCREENSHOT_PATH || "C:\\temp\\intern-proof.png";
 const LOG_LEVEL = (process.env.LOG_LEVEL || "info").toLowerCase();
@@ -27,9 +25,7 @@ function log(level: LogLevel, message: string, meta?: unknown) {
   }
 }
 
-if (!GEMINI_API_KEY) {
-  log("warn", "Missing GEMINI_API_KEY; LLM calls will fail until set.");
-}
+/* ── WebSocket server ─────────────────────────────── */
 
 const wss = new WebSocketServer({ port: PORT });
 log("info", `Backend listening on ws://127.0.0.1:${PORT}`);
@@ -39,6 +35,8 @@ let localAgentReady = false;
 let reconnectTimer: NodeJS.Timeout | null = null;
 
 const frontendClients = new Set<WebSocket>();
+
+/* ── Local agent connection ───────────────────────── */
 
 function connectLocalAgent() {
   if (localAgent && (localAgent.readyState === WebSocket.OPEN || localAgent.readyState === WebSocket.CONNECTING)) {
@@ -94,6 +92,8 @@ function scheduleReconnect() {
 
 connectLocalAgent();
 
+/* ── Frontend connection handler ──────────────────── */
+
 wss.on("connection", (ws) => {
   frontendClients.add(ws);
   ws.send(JSON.stringify(makeEvent("backend_ready", "ok", "Backend connected")));
@@ -104,7 +104,7 @@ wss.on("connection", (ws) => {
     log("info", "Frontend disconnected");
   });
 
-  ws.on("message", async (data) => {
+  ws.on("message", (data) => {
     let msg: any;
     try {
       msg = JSON.parse(data.toString());
@@ -113,46 +113,56 @@ wss.on("connection", (ws) => {
       log("warn", "Invalid JSON from frontend", data.toString());
       return;
     }
-    log("debug", "Frontend -> backend", msg);
 
+    // Ping/pong keepalive
     if (msg.type === "ping") {
       ws.send(JSON.stringify({ type: "pong", ts_ms: Date.now() }));
       return;
     }
 
-    const text = (msg.text || msg.instruction || "").toString().trim();
-    if (!text) {
-      ws.send(JSON.stringify({ type: "error", error: "Missing text" }));
-      log("warn", "Missing text from frontend", msg);
-      return;
-    }
+    // Expect the frontend to send commands directly
+    // Supported shapes:
+    //   { type: "commands", commands: [ {index, instruction, tag}, ... ] }
+    //   { instruction: "...", tag: "..." }   (single command shorthand)
+    //   { text: "..." }                      (raw text → forwarded as-is)
 
     if (!localAgentReady || !localAgent) {
       ws.send(JSON.stringify(makeEvent("agent_offline", "error", "Local agent not connected")));
       return;
     }
 
-    try {
-      log("info", "Generating commands", { text });
-      const commands = await generateCommands(text);
-      const withScreenshot = appendScreenshot(commands);
-
-      ws.send(JSON.stringify(makeEvent("ai_plan", "ok", `Generated ${commands.length} commands`)));
-
-      const payload = {
-        index: 0,
-        instruction: JSON.stringify(withScreenshot),
-        tag: "ws"
-      };
-
-      log("debug", "Backend -> local agent (batch)", payload);
-      localAgent.send(JSON.stringify(payload));
-    } catch (err: any) {
-      ws.send(JSON.stringify(makeEvent("ai_error", "error", err?.message || "LLM error")));
-      log("error", "LLM error", err?.message || err);
+    if (msg.type === "commands" && Array.isArray(msg.commands)) {
+      // Batch of commands from frontend
+      log("info", "Received commands from frontend", { count: msg.commands.length, commands: msg.commands });
+      sendToAgent(msg.commands);
+      ws.send(JSON.stringify(makeEvent("commands_sent", "ok", `Sent ${msg.commands.length} commands to agent`)));
+      return;
     }
+
+    if (msg.instruction) {
+      // Single command shorthand
+      const command = { index: 0, instruction: msg.instruction, tag: msg.tag || "ws" };
+      log("info", "Received single command from frontend", command);
+      sendToAgent(command);
+      ws.send(JSON.stringify(makeEvent("commands_sent", "ok", `Sent command: ${msg.instruction}`)));
+      return;
+    }
+
+    if (msg.text) {
+      // Raw text — wrap as a single instruction and forward
+      const command = { index: 0, instruction: msg.text, tag: "ws" };
+      log("info", "Received text from frontend, forwarding to agent", { text: msg.text });
+      sendToAgent(command);
+      ws.send(JSON.stringify(makeEvent("commands_sent", "ok", `Forwarded: ${msg.text}`)));
+      return;
+    }
+
+    ws.send(JSON.stringify({ type: "error", error: "Unknown message format" }));
+    log("warn", "Unknown message format from frontend", msg);
   });
 });
+
+/* ── Helpers ──────────────────────────────────────── */
 
 function broadcast(event: unknown) {
   const message = JSON.stringify(event);
@@ -178,277 +188,24 @@ function makeEvent(instruction: string, status: "ok" | "error", detail: string) 
 function isScreenshotEvent(payload: any): boolean {
   return Boolean(
     payload &&
-      payload.instruction &&
-      typeof payload.instruction === "string" &&
-      payload.instruction.startsWith("screenshot ") &&
-      payload.status === "ok" &&
-      payload.screenshot_data_url
+    payload.instruction &&
+    typeof payload.instruction === "string" &&
+    payload.instruction.startsWith("screenshot ") &&
+    payload.status === "ok" &&
+    payload.screenshot_data_url
   );
 }
 
-async function generateCommands(userText: string) {
-  const system =
-    "You generate Windows automation commands. " +
-    "Output ONLY a JSON array. No prose, no code fences. " +
-    "Each item: {index:number,instruction:string,tag:string}. " +
-    "Allowed instructions: move, click, doubleclick, mousedown, mouseup, drag, scroll, type:, key:, hotkey:, wait. " +
-    "Use hotkey: CTRL+ESC to open Start. " +
-    "Use waits (500-800ms) between UI steps.";
-
-  const prompt = `User request: ${userText}`;
-
-  const body = {
-    systemInstruction: { parts: [{ text: system }] },
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: {
-      temperature: 0.2,
-      maxOutputTokens: 256,
-      responseMimeType: "application/json"
-    }
+function sendToAgent(commands: any[] | object) {
+  if (!localAgentReady || !localAgent) {
+    broadcast(makeEvent("agent_offline", "error", "Local agent not connected"));
+    return;
+  }
+  const payload = {
+    index: 0,
+    instruction: JSON.stringify(commands),
+    tag: "ws"
   };
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-  log("debug", "Gemini request", { model: GEMINI_MODEL });
-  let res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Gemini API error: ${res.status} ${text}`);
-  }
-
-  let json = await res.json();
-  log("debug", "Gemini raw response object", json);
-  const text = extractModelText(json);
-  log("debug", "Gemini response text", text);
-  if (!text.trim()) {
-    log("warn", "Empty Gemini response, retrying without responseMimeType");
-    const retryBody = {
-      systemInstruction: { parts: [{ text: system }] },
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.2, maxOutputTokens: 256 }
-    };
-    res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(retryBody)
-    });
-    if (!res.ok) {
-      const retryText = await res.text();
-      throw new Error(`Gemini retry error: ${res.status} ${retryText}`);
-    }
-    json = await res.json();
-    log("debug", "Gemini retry raw response object", json);
-    const retryText = extractModelText(json);
-    log("debug", "Gemini retry response text", retryText);
-    if (!retryText.trim()) {
-      return fallbackCommands(userText);
-    }
-    return finalizeCommands(retryText, userText);
-  }
-  return await finalizeCommands(text, userText);
-}
-
-function parseJsonArray(text: string) {
-  const trimmed = text.trim();
-  if (!trimmed) {
-    throw new Error("LLM returned empty response");
-  }
-
-  const fenced = extractFencedJson(trimmed);
-  const candidate = fenced ?? trimmed;
-  const slice = extractBracketedArray(candidate);
-  const normalized = normalizeJson(slice);
-
-  try {
-    return JSON.parse(normalized);
-  } catch (err) {
-    const snippet = normalized.slice(0, 400);
-    throw new Error(`LLM did not return a JSON array. Raw: ${snippet}`);
-  }
-}
-
-function extractFencedJson(text: string): string | null {
-  const fenceMatch = text.match(/```(?:json)?\\s*([\\s\\S]*?)```/i);
-  if (fenceMatch) return fenceMatch[1].trim();
-  const start = text.search(/```(?:json)?/i);
-  if (start !== -1) {
-    const after = text.slice(start).replace(/```(?:json)?/i, "");
-    return after.trim();
-  }
-  return null;
-}
-
-function extractBracketedArray(text: string): string {
-  const trimmed = text.trim();
-  if (trimmed.startsWith("[")) return trimmed;
-  const start = trimmed.indexOf("[");
-  const end = trimmed.lastIndexOf("]");
-  if (start !== -1 && end !== -1 && end > start) {
-    return trimmed.slice(start, end + 1);
-  }
-  return trimmed;
-}
-
-function normalizeJson(text: string): string {
-  return text
-    .replace(/^Here is the JSON requested:\\s*/i, "")
-    .replace(/[“”]/g, "\"")
-    .replace(/[‘’]/g, "'")
-    .replace(/\\s+$/g, "")
-    .replace(/,\\s*([\\]}])/g, "$1");
-}
-
-async function repairCommands(rawText: string) {
-  const system =
-    "You repair outputs into a valid JSON array for Windows automation. " +
-    "Return ONLY a JSON array. No prose, no code fences. " +
-    "Each item must have: index (number), instruction (string), tag (string).";
-  const prompt = `Convert this into the required JSON array:\\n${rawText}`;
-  const body = {
-    systemInstruction: { parts: [{ text: system }] },
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.0, maxOutputTokens: 256 }
-  };
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-  log("debug", "Gemini repair request", { model: GEMINI_MODEL });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Gemini repair error: ${res.status} ${text}`);
-  }
-
-  const json = await res.json();
-  const parts = json?.candidates?.[0]?.content?.parts || [];
-  const text = parts.map((p: any) => p?.text || "").join("");
-  log("debug", "Gemini repair response text", text);
-  return parseJsonArray(text);
-}
-
-async function finalizeCommands(text: string, userText: string) {
-  let parsed: any[];
-  try {
-    parsed = parseJsonArray(text);
-  } catch (err: any) {
-    log("error", "Gemini parse failure. Raw response:", text);
-    try {
-      const strict = await strictRetry(userText);
-      validateCommands(strict);
-      return strict;
-    } catch {
-      // continue to repair
-    }
-    try {
-      const repaired = await repairCommands(text);
-      validateCommands(repaired);
-      return repaired;
-    } catch {
-      return fallbackCommands(userText);
-    }
-  }
-  validateCommands(parsed);
-  return parsed;
-}
-
-async function strictRetry(userText: string) {
-  const system =
-    "Return ONLY a JSON array. No prose, no code fences. " +
-    "Each item must have: index (number), instruction (string), tag (string). " +
-    "Allowed instructions: move, click, doubleclick, mousedown, mouseup, drag, scroll, type:, key:, hotkey:, wait. " +
-    "Use hotkey: CTRL+ESC to open Start. " +
-    "Use waits (500-800ms) between UI steps.";
-  const prompt = `User request: ${userText}`;
-  const body = {
-    systemInstruction: { parts: [{ text: system }] },
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.0, maxOutputTokens: 256, responseMimeType: "application/json" }
-  };
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-  log("debug", "Gemini strict retry", { model: GEMINI_MODEL });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Gemini strict retry error: ${res.status} ${text}`);
-  }
-  const json = await res.json();
-  log("debug", "Gemini strict retry raw", json);
-  const text = extractModelText(json);
-  log("debug", "Gemini strict retry text", text);
-  return parseJsonArray(text);
-}
-
-function extractModelText(json: any): string {
-  const parts = json?.candidates?.[0]?.content?.parts || [];
-  const combined = parts.map((p: any) => p?.text || "").join("");
-  if (combined) return combined;
-  if (typeof json?.candidates?.[0]?.content?.text === "string") {
-    return json.candidates[0].content.text;
-  }
-  return "";
-}
-
-function fallbackCommands(userText: string) {
-  const lower = userText.toLowerCase();
-  if (lower.includes("notepad") || lower.includes("note pad")) {
-    return [
-      { index: 1, instruction: "hotkey: CTRL+ESC", tag: "ws" },
-      { index: 2, instruction: "wait 600", tag: "ws" },
-      { index: 3, instruction: "type: notepad", tag: "ws" },
-      { index: 4, instruction: "wait 600", tag: "ws" },
-      { index: 5, instruction: "key: ENTER", tag: "ws" }
-    ];
-  }
-  if (lower.includes("edge")) {
-    return [
-      { index: 1, instruction: "hotkey: CTRL+ESC", tag: "ws" },
-      { index: 2, instruction: "wait 600", tag: "ws" },
-      { index: 3, instruction: "type: edge", tag: "ws" },
-      { index: 4, instruction: "wait 600", tag: "ws" },
-      { index: 5, instruction: "key: ENTER", tag: "ws" }
-    ];
-  }
-  if (lower.includes("calculator") || lower.includes("calc")) {
-    return [
-      { index: 1, instruction: "hotkey: CTRL+ESC", tag: "ws" },
-      { index: 2, instruction: "wait 600", tag: "ws" },
-      { index: 3, instruction: "type: calculator", tag: "ws" },
-      { index: 4, instruction: "wait 600", tag: "ws" },
-      { index: 5, instruction: "key: ENTER", tag: "ws" }
-    ];
-  }
-  return [
-    { index: 1, instruction: "wait 500", tag: "ws" }
-  ];
-}
-
-function validateCommands(commands: any[]) {
-  if (!Array.isArray(commands) || commands.length === 0) {
-    throw new Error("No commands generated");
-  }
-  for (const cmd of commands) {
-    if (!cmd || typeof cmd.instruction !== "string") {
-      throw new Error("Invalid command shape from LLM");
-    }
-  }
-}
-
-function appendScreenshot(commands: any[]) {
-  const index = commands.length + 1;
-  return [
-    ...commands,
-    { index, instruction: `screenshot ${SCREENSHOT_PATH}`, tag: "ws" }
-  ];
+  log("debug", "Backend -> local agent", payload);
+  localAgent.send(JSON.stringify(payload));
 }

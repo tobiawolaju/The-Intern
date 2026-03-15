@@ -80,7 +80,7 @@
       ...events,
       {
         type: "outgoing",
-        instruction: payload.instruction,
+        text: payload.text,
         tag: payload.tag,
         ts_ms: Date.now()
       }
@@ -250,7 +250,7 @@
               class="wa-bubble {event.type === 'outgoing' ? 'from-me' : 'from-body'} {event.status === 'error' ? 'error' : 'ok'}"
             >
             {#if event.type === "outgoing"}
-              <strong>{event.instruction}</strong>
+              <strong>{event.text ?? event.instruction}</strong>
               <small>Tag: {event.tag}</small>
             {:else if event.type === "pong"}
               <strong>Pong</strong>
