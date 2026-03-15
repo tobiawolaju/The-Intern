@@ -33,6 +33,8 @@ log("info", `Backend listening on ws://127.0.0.1:${PORT}`);
 let localAgent: WebSocket | null = null;
 let localAgentReady = false;
 let reconnectTimer: NodeJS.Timeout | null = null;
+let agentDisconnectNotified = false;
+let reconnectDelay = 1000;
 
 const frontendClients = new Set<WebSocket>();
 
@@ -48,21 +50,33 @@ function connectLocalAgent() {
 
   localAgent.on("open", () => {
     localAgentReady = true;
-    log("info", `Connected to local agent at ${LOCAL_AGENT_WS}`);
+    reconnectDelay = 1000;
+    if (agentDisconnectNotified) {
+      log("info", `Reconnected to local agent at ${LOCAL_AGENT_WS}`);
+    } else {
+      log("info", `Connected to local agent at ${LOCAL_AGENT_WS}`);
+    }
+    agentDisconnectNotified = false;
     broadcast(makeEvent("agent_connected", "ok", `Connected to ${LOCAL_AGENT_WS}`));
   });
 
   localAgent.on("close", () => {
     localAgentReady = false;
-    log("warn", "Local agent disconnected");
-    broadcast(makeEvent("agent_disconnected", "error", "Local agent disconnected"));
+    if (!agentDisconnectNotified) {
+      agentDisconnectNotified = true;
+      log("warn", "Local agent disconnected. Will keep retrying silently...");
+      broadcast(makeEvent("agent_disconnected", "error", "Local agent disconnected"));
+    }
     scheduleReconnect();
   });
 
-  localAgent.on("error", (err) => {
+  localAgent.on("error", () => {
     localAgentReady = false;
-    log("error", "Local agent error", err);
-    broadcast(makeEvent("agent_error", "error", "Local agent error"));
+    if (!agentDisconnectNotified) {
+      agentDisconnectNotified = true;
+      log("warn", "Local agent not reachable. Will keep retrying silently...");
+      broadcast(makeEvent("agent_disconnected", "error", "Local agent not connected"));
+    }
     scheduleReconnect();
   });
 
@@ -87,7 +101,8 @@ function scheduleReconnect() {
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
     connectLocalAgent();
-  }, 1000);
+  }, reconnectDelay);
+  reconnectDelay = Math.min(reconnectDelay * 2, 30000);
 }
 
 connectLocalAgent();
@@ -120,47 +135,43 @@ wss.on("connection", (ws) => {
       return;
     }
 
-    // Expect the frontend to send commands directly
-    // Supported shapes:
-    //   { type: "commands", commands: [ {index, instruction, tag}, ... ] }
-    //   { instruction: "...", tag: "..." }   (single command shorthand)
-    //   { text: "..." }                      (raw text → forwarded as-is)
-
     if (!localAgentReady || !localAgent) {
       ws.send(JSON.stringify(makeEvent("agent_offline", "error", "Local agent not connected")));
       return;
     }
 
+    // Figure out what commands to send
+    let commands: any[] | null = null;
+
     if (msg.type === "commands" && Array.isArray(msg.commands)) {
-      // Batch of commands from frontend
-      log("info", "Received commands from frontend", { count: msg.commands.length, commands: msg.commands });
-      sendToAgent(msg.commands);
-      ws.send(JSON.stringify(makeEvent("commands_sent", "ok", `Sent ${msg.commands.length} commands to agent`)));
+      commands = msg.commands;
+    } else if (msg.text) {
+      // Try parsing text as a JSON array of commands
+      try {
+        const parsed = JSON.parse(msg.text);
+        if (Array.isArray(parsed)) {
+          commands = parsed;
+        }
+      } catch {
+        // Not JSON — treat as a single raw instruction
+        commands = [{ index: 0, instruction: msg.text, tag: "ws" }];
+      }
+    } else if (msg.instruction) {
+      commands = [{ index: 0, instruction: msg.instruction, tag: msg.tag || "ws" }];
+    }
+
+    if (!commands) {
+      ws.send(JSON.stringify({ type: "error", error: "Unknown message format" }));
       return;
     }
 
-    if (msg.instruction) {
-      // Single command shorthand
-      const command = { index: 0, instruction: msg.instruction, tag: msg.tag || "ws" };
-      log("info", "Received single command from frontend", command);
-      sendToAgent(command);
-      ws.send(JSON.stringify(makeEvent("commands_sent", "ok", `Sent command: ${msg.instruction}`)));
-      return;
-    }
-
-    if (msg.text) {
-      // Raw text — wrap as a single instruction and forward
-      const command = { index: 0, instruction: msg.text, tag: "ws" };
-      log("info", "Received text from frontend, forwarding to agent", { text: msg.text });
-      sendToAgent(command);
-      ws.send(JSON.stringify(makeEvent("commands_sent", "ok", `Forwarded: ${msg.text}`)));
-      return;
-    }
-
-    ws.send(JSON.stringify({ type: "error", error: "Unknown message format" }));
-    log("warn", "Unknown message format from frontend", msg);
+    log("info", "Forwarding to agent", { count: commands.length, commands });
+    sendToAgent(commands);
+    ws.send(JSON.stringify(makeEvent("commands_sent", "ok", `Sent ${commands.length} command(s) to agent`)));
   });
 });
+
+
 
 /* ── Helpers ──────────────────────────────────────── */
 

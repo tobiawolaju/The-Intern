@@ -15,5 +15,6 @@ worked like charm
       {"index":5,"instruction":"key: ENTER","tag":"ws"},
       {"index":6,"instruction":"wait 800","tag":"ws"},
       {"index":7,"instruction":"type: test 123","tag":"ws"}
-    ]cd backend
+    ]
+    cd backend
   npm install
