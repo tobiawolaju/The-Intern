@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from "svelte";
 
   let ws;
-  let wsUrl = "ws://127.0.0.1:8765";
+  let wsUrl = "ws://127.0.0.1:8787";
   let connected = false;
   let lastError = "";
   let reconnectTimer;
@@ -70,8 +70,9 @@
     if (!instruction.trim()) return;
 
     const payload = {
+      type: "user",
       index,
-      instruction: instruction.trim(),
+      text: instruction.trim(),
       tag: tag.trim() || "ws"
     };
 

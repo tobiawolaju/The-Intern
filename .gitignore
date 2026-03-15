@@ -1,0 +1,56 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.tmp
+*.bak
+*.log
+*.pid
+
+# Node / frontend / backend
+node_modules/
+**/node_modules/
+.DS_Store
+.env
+.env.*
+*.env
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+/dist/
+**/dist/
+/build/
+**/build/
+/out/
+**/out/
+
+# Rust
+/target/
+**/target/
+Cargo.lock
+
+# Local artifacts
+*.exe
+*.msi
+*.dll
+*.pdb
+*.ico
+
+# Screenshots / captures
+**/screenshots/
+**/captures/
+**/*screenshot*
+C:\\temp\\
+
+# Logs / runtime data
+logs/
+**/logs/
+*.jsonl
+
+# IDE
+.vscode/
+.idea/

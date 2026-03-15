@@ -3,3 +3,17 @@ cargo build --release --manifest-path client-rust/Cargo.toml --target x86_64-pc-
 
 
 .\intern-local.exe --log-file ..\..\..\..\test\run.jsonl run --file ..\..\..\..\test\commands_win.json
+
+
+
+worked like charm
+[
+      {"index":1,"instruction":"hotkey: CTRL+ESC","tag":"ws"},
+      {"index":2,"instruction":"wait 600","tag":"ws"},
+      {"index":3,"instruction":"type: notepad","tag":"ws"},
+      {"index":4,"instruction":"wait 600","tag":"ws"},
+      {"index":5,"instruction":"key: ENTER","tag":"ws"},
+      {"index":6,"instruction":"wait 800","tag":"ws"},
+      {"index":7,"instruction":"type: test 123","tag":"ws"}
+    ]cd backend
+  npm install

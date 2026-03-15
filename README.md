@@ -507,6 +507,23 @@ CloudBrain --> ChatUI
 * Google Gemini API
 * Google ADK
 
+## Backend (Cloud Brain Prototype)
+
+The minimal backend lives in `backend/` and brokers:
+
+* Frontend chat messages
+* Gemini command generation
+* Local Rust agent execution
+
+Environment variables:
+
+* `GEMINI_API_KEY` (required)
+* `GEMINI_MODEL` (default: `gemini-flash-latest`)
+* `LOCAL_AGENT_WS` (default: `ws://127.0.0.1:8765`)
+* `BACKEND_PORT` (default: `8787`)
+* `SCREENSHOT_PATH` (default: `C:\\temp\\intern-proof.png`)
+* `LOG_LEVEL` (default: `info`, options: `debug`, `info`, `warn`, `error`)
+
 ---
 
 ## Clone Repository
