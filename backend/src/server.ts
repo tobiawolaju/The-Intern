@@ -5,6 +5,7 @@ const PORT = Number(process.env.BACKEND_PORT || 8787);
 const LOCAL_AGENT_WS = process.env.LOCAL_AGENT_WS || "ws://127.0.0.1:8765";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
+const GEMINI_STRICT_JSON = (process.env.GEMINI_STRICT_JSON || "1") !== "0";
 const SCREENSHOT_PATH =
   process.env.SCREENSHOT_PATH || "C:\\temp\\intern-proof.png";
 const LOG_LEVEL = (process.env.LOG_LEVEL || "info").toLowerCase();
@@ -188,25 +189,38 @@ function isScreenshotEvent(payload: any): boolean {
 
 async function generateCommands(userText: string) {
   const system =
-    "You are a command generator for a Windows automation client. " +
-    "Return ONLY a JSON array. No prose, no code fences. " +
-    "Each item must have: index (number), instruction (string), tag (string). " +
+    "You generate Windows automation commands. " +
+    "Output ONLY a JSON array. No prose, no code fences. " +
+    "Each item: {index:number,instruction:string,tag:string}. " +
     "Allowed instructions: move, click, doubleclick, mousedown, mouseup, drag, scroll, type:, key:, hotkey:, wait. " +
-    "Use hotkey: CTRL+ESC to open Start (not WIN). " +
-    "Use waits (500-800ms) between UI steps. " +
-    "Example for 'open notepad' should open Start, type notepad, press enter.";
+    "Use hotkey: CTRL+ESC to open Start. " +
+    "Use waits (500-800ms) between UI steps.";
 
   const prompt = `User request: ${userText}`;
 
-  const body = {
+  const body: any = {
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     generationConfig: {
       temperature: 0.2,
       maxOutputTokens: 256,
-      responseMimeType: "application/json"
+      responseMimeType: GEMINI_STRICT_JSON ? "application/json" : undefined
     }
   };
+  if (GEMINI_STRICT_JSON) {
+    body.responseSchema = {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          index: { type: "NUMBER" },
+          instruction: { type: "STRING" },
+          tag: { type: "STRING" }
+        },
+        required: ["index", "instruction", "tag"]
+      }
+    };
+  }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
   log("debug", "Gemini request", { model: GEMINI_MODEL });
@@ -223,8 +237,7 @@ async function generateCommands(userText: string) {
 
   let json = await res.json();
   log("debug", "Gemini raw response object", json);
-  const parts = json?.candidates?.[0]?.content?.parts || [];
-  const text = parts.map((p: any) => p?.text || "").join("");
+  const text = extractModelText(json);
   log("debug", "Gemini response text", text);
   if (!text.trim()) {
     log("warn", "Empty Gemini response, retrying without responseMimeType");
@@ -244,8 +257,7 @@ async function generateCommands(userText: string) {
     }
     json = await res.json();
     log("debug", "Gemini retry raw response object", json);
-    const retryParts = json?.candidates?.[0]?.content?.parts || [];
-    const retryText = retryParts.map((p: any) => p?.text || "").join("");
+    const retryText = extractModelText(json);
     log("debug", "Gemini retry response text", retryText);
     if (!retryText.trim()) {
       return fallbackCommands(userText);
@@ -367,13 +379,25 @@ async function strictRetry(userText: string) {
     "Return ONLY a JSON array. No prose, no code fences. " +
     "Each item must have: index (number), instruction (string), tag (string). " +
     "Allowed instructions: move, click, doubleclick, mousedown, mouseup, drag, scroll, type:, key:, hotkey:, wait. " +
-    "Use hotkey: CTRL+ESC to open Start (not WIN). " +
+    "Use hotkey: CTRL+ESC to open Start. " +
     "Use waits (500-800ms) between UI steps.";
   const prompt = `User request: ${userText}`;
-  const body = {
+  const body: any = {
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     generationConfig: { temperature: 0.0, maxOutputTokens: 256, responseMimeType: "application/json" }
+  };
+  body.responseSchema = {
+    type: "ARRAY",
+    items: {
+      type: "OBJECT",
+      properties: {
+        index: { type: "NUMBER" },
+        instruction: { type: "STRING" },
+        tag: { type: "STRING" }
+      },
+      required: ["index", "instruction", "tag"]
+    }
   };
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
   log("debug", "Gemini strict retry", { model: GEMINI_MODEL });
@@ -388,10 +412,19 @@ async function strictRetry(userText: string) {
   }
   const json = await res.json();
   log("debug", "Gemini strict retry raw", json);
-  const parts = json?.candidates?.[0]?.content?.parts || [];
-  const text = parts.map((p: any) => p?.text || "").join("");
+  const text = extractModelText(json);
   log("debug", "Gemini strict retry text", text);
   return parseJsonArray(text);
+}
+
+function extractModelText(json: any): string {
+  const parts = json?.candidates?.[0]?.content?.parts || [];
+  const combined = parts.map((p: any) => p?.text || "").join("");
+  if (combined) return combined;
+  if (typeof json?.candidates?.[0]?.content?.text === "string") {
+    return json.candidates[0].content.text;
+  }
+  return "";
 }
 
 function fallbackCommands(userText: string) {
