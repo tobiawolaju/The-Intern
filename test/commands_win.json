@@ -1,0 +1,12 @@
+[
+  {"index": 1, "instruction": "move 200 200", "tag": "input"},
+  {"index": 2, "instruction": "doubleclick 200 200", "tag": "input"},
+  {"index": 3, "instruction": "type: hello from intern", "tag": "input"},
+  {"index": 4, "instruction": "key: ENTER", "tag": "input"},
+  {"index": 5, "instruction": "hotkey: CTRL+SHIFT+S", "tag": "input"},
+  {"index": 6, "instruction": "scroll -480", "tag": "input"},
+  {"index": 7, "instruction": "drag 200 200 400 400", "tag": "input"},
+  {"index": 8, "instruction": "wait 500", "tag": "control"},
+  {"index": 9, "instruction": "screenshot C:/temp/intern-shot.png", "tag": "screen"},
+  {"index": 10, "instruction": "noop", "tag": "control"}
+]

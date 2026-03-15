@@ -1,0 +1,14 @@
+/mnt/c/users/tobia/desktop/projects/The-Intern/client-rust/target/release/deps/serde-f54a377f7ba6bf52.d: /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /mnt/c/users/tobia/desktop/projects/The-Intern/client-rust/target/release/build/serde-34f48f7d935fc3cc/out/private.rs
+
+/mnt/c/users/tobia/desktop/projects/The-Intern/client-rust/target/release/deps/libserde-f54a377f7ba6bf52.rlib: /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /mnt/c/users/tobia/desktop/projects/The-Intern/client-rust/target/release/build/serde-34f48f7d935fc3cc/out/private.rs
+
+/mnt/c/users/tobia/desktop/projects/The-Intern/client-rust/target/release/deps/libserde-f54a377f7ba6bf52.rmeta: /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /mnt/c/users/tobia/desktop/projects/The-Intern/client-rust/target/release/build/serde-34f48f7d935fc3cc/out/private.rs
+
+/home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/mnt/c/users/tobia/desktop/projects/The-Intern/client-rust/target/release/build/serde-34f48f7d935fc3cc/out/private.rs:
+
+# env-dep:OUT_DIR=/mnt/c/users/tobia/desktop/projects/The-Intern/client-rust/target/release/build/serde-34f48f7d935fc3cc/out

@@ -1,0 +1,15 @@
+[
+  {"index": 1, "instruction": "move <x> <y>", "tag": "input"},
+  {"index": 2, "instruction": "click <x> <y>", "tag": "input"},
+  {"index": 3, "instruction": "doubleclick <x> <y>", "tag": "input"},
+  {"index": 4, "instruction": "mousedown <x> <y>", "tag": "input"},
+  {"index": 5, "instruction": "mouseup <x> <y>", "tag": "input"},
+  {"index": 6, "instruction": "drag <x1> <y1> <x2> <y2>", "tag": "input"},
+  {"index": 7, "instruction": "scroll <delta>", "tag": "input"},
+  {"index": 8, "instruction": "type: <text>", "tag": "input"},
+  {"index": 9, "instruction": "key: <NAME>", "tag": "input"},
+  {"index": 10, "instruction": "hotkey: CTRL+SHIFT+S", "tag": "input"},
+  {"index": 11, "instruction": "wait <ms>", "tag": "control"},
+  {"index": 12, "instruction": "screenshot <path>", "tag": "screen"},
+  {"index": 13, "instruction": "noop", "tag": "control"}
+]

@@ -1,0 +1,11 @@
+/mnt/c/users/tobia/desktop/projects/The-Intern/client-rust/target/x86_64-pc-windows-gnu/release/deps/enigo-9fd3a317060ae140.d: /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enigo-0.6.1/src/lib.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enigo-0.6.1/src/agent.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enigo-0.6.1/src/win/mod.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enigo-0.6.1/src/win/win_impl.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enigo-0.6.1/src/keycodes.rs
+
+/mnt/c/users/tobia/desktop/projects/The-Intern/client-rust/target/x86_64-pc-windows-gnu/release/deps/libenigo-9fd3a317060ae140.rlib: /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enigo-0.6.1/src/lib.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enigo-0.6.1/src/agent.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enigo-0.6.1/src/win/mod.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enigo-0.6.1/src/win/win_impl.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enigo-0.6.1/src/keycodes.rs
+
+/mnt/c/users/tobia/desktop/projects/The-Intern/client-rust/target/x86_64-pc-windows-gnu/release/deps/libenigo-9fd3a317060ae140.rmeta: /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enigo-0.6.1/src/lib.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enigo-0.6.1/src/agent.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enigo-0.6.1/src/win/mod.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enigo-0.6.1/src/win/win_impl.rs /home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enigo-0.6.1/src/keycodes.rs
+
+/home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enigo-0.6.1/src/lib.rs:
+/home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enigo-0.6.1/src/agent.rs:
+/home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enigo-0.6.1/src/win/mod.rs:
+/home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enigo-0.6.1/src/win/win_impl.rs:
+/home/tobi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/enigo-0.6.1/src/keycodes.rs:

@@ -1,0 +1,5 @@
+build exe
+cargo build --release --manifest-path client-rust/Cargo.toml --target x86_64-pc-windows-gnu
+
+
+.\intern-local.exe --log-file ..\..\..\..\test\run.jsonl run --file ..\..\..\..\test\commands_win.json
