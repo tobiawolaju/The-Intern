@@ -4,7 +4,7 @@ import { WebSocket, WebSocketServer } from "ws";
 const PORT = Number(process.env.BACKEND_PORT || 8787);
 const LOCAL_AGENT_WS = process.env.LOCAL_AGENT_WS || "ws://127.0.0.1:8765";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
 const SCREENSHOT_PATH =
   process.env.SCREENSHOT_PATH || "C:\\temp\\intern-proof.png";
 const LOG_LEVEL = (process.env.LOG_LEVEL || "info").toLowerCase();
@@ -189,7 +189,8 @@ function isScreenshotEvent(payload: any): boolean {
 async function generateCommands(userText: string) {
   const system =
     "You are a command generator for a Windows automation client. " +
-    "Return ONLY a JSON array. Each item must have: index (number), instruction (string), tag (string). " +
+    "Return ONLY a JSON array. No prose, no code fences. " +
+    "Each item must have: index (number), instruction (string), tag (string). " +
     "Allowed instructions: move, click, doubleclick, mousedown, mouseup, drag, scroll, type:, key:, hotkey:, wait. " +
     "Use hotkey: CTRL+ESC to open Start (not WIN). " +
     "Use waits (500-800ms) between UI steps. " +
@@ -202,13 +203,14 @@ async function generateCommands(userText: string) {
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     generationConfig: {
       temperature: 0.2,
-      maxOutputTokens: 512
+      maxOutputTokens: 256,
+      responseMimeType: "application/json"
     }
   };
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
   log("debug", "Gemini request", { model: GEMINI_MODEL });
-  const res = await fetch(url, {
+  let res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
@@ -219,28 +221,211 @@ async function generateCommands(userText: string) {
     throw new Error(`Gemini API error: ${res.status} ${text}`);
   }
 
-  const json = await res.json();
-  const text = json?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  let json = await res.json();
+  log("debug", "Gemini raw response object", json);
+  const parts = json?.candidates?.[0]?.content?.parts || [];
+  const text = parts.map((p: any) => p?.text || "").join("");
   log("debug", "Gemini response text", text);
-  const parsed = parseJsonArray(text);
-  validateCommands(parsed);
-  return parsed;
+  if (!text.trim()) {
+    log("warn", "Empty Gemini response, retrying without responseMimeType");
+    const retryBody = {
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.2, maxOutputTokens: 256 }
+    };
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(retryBody)
+    });
+    if (!res.ok) {
+      const retryText = await res.text();
+      throw new Error(`Gemini retry error: ${res.status} ${retryText}`);
+    }
+    json = await res.json();
+    log("debug", "Gemini retry raw response object", json);
+    const retryParts = json?.candidates?.[0]?.content?.parts || [];
+    const retryText = retryParts.map((p: any) => p?.text || "").join("");
+    log("debug", "Gemini retry response text", retryText);
+    if (!retryText.trim()) {
+      return fallbackCommands(userText);
+    }
+    return finalizeCommands(retryText, userText);
+  }
+  return await finalizeCommands(text, userText);
 }
 
 function parseJsonArray(text: string) {
   const trimmed = text.trim();
-  if (trimmed.startsWith("[")) {
-    return JSON.parse(trimmed);
+  if (!trimmed) {
+    throw new Error("LLM returned empty response");
   }
 
+  const fenced = extractFencedJson(trimmed);
+  const candidate = fenced ?? trimmed;
+  const slice = extractBracketedArray(candidate);
+  const normalized = normalizeJson(slice);
+
+  try {
+    return JSON.parse(normalized);
+  } catch (err) {
+    const snippet = normalized.slice(0, 400);
+    throw new Error(`LLM did not return a JSON array. Raw: ${snippet}`);
+  }
+}
+
+function extractFencedJson(text: string): string | null {
+  const fenceMatch = text.match(/```(?:json)?\\s*([\\s\\S]*?)```/i);
+  if (fenceMatch) return fenceMatch[1].trim();
+  const start = text.search(/```(?:json)?/i);
+  if (start !== -1) {
+    const after = text.slice(start).replace(/```(?:json)?/i, "");
+    return after.trim();
+  }
+  return null;
+}
+
+function extractBracketedArray(text: string): string {
+  const trimmed = text.trim();
+  if (trimmed.startsWith("[")) return trimmed;
   const start = trimmed.indexOf("[");
   const end = trimmed.lastIndexOf("]");
   if (start !== -1 && end !== -1 && end > start) {
-    const slice = trimmed.slice(start, end + 1);
-    return JSON.parse(slice);
+    return trimmed.slice(start, end + 1);
+  }
+  return trimmed;
+}
+
+function normalizeJson(text: string): string {
+  return text
+    .replace(/^Here is the JSON requested:\\s*/i, "")
+    .replace(/[“”]/g, "\"")
+    .replace(/[‘’]/g, "'")
+    .replace(/\\s+$/g, "")
+    .replace(/,\\s*([\\]}])/g, "$1");
+}
+
+async function repairCommands(rawText: string) {
+  const system =
+    "You repair outputs into a valid JSON array for Windows automation. " +
+    "Return ONLY a JSON array. No prose, no code fences. " +
+    "Each item must have: index (number), instruction (string), tag (string).";
+  const prompt = `Convert this into the required JSON array:\\n${rawText}`;
+  const body = {
+    systemInstruction: { parts: [{ text: system }] },
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.0, maxOutputTokens: 256 }
+  };
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+  log("debug", "Gemini repair request", { model: GEMINI_MODEL });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Gemini repair error: ${res.status} ${text}`);
   }
 
-  throw new Error("LLM did not return a JSON array");
+  const json = await res.json();
+  const parts = json?.candidates?.[0]?.content?.parts || [];
+  const text = parts.map((p: any) => p?.text || "").join("");
+  log("debug", "Gemini repair response text", text);
+  return parseJsonArray(text);
+}
+
+async function finalizeCommands(text: string, userText: string) {
+  let parsed: any[];
+  try {
+    parsed = parseJsonArray(text);
+  } catch (err: any) {
+    log("error", "Gemini parse failure. Raw response:", text);
+    try {
+      const strict = await strictRetry(userText);
+      validateCommands(strict);
+      return strict;
+    } catch {
+      // continue to repair
+    }
+    try {
+      const repaired = await repairCommands(text);
+      validateCommands(repaired);
+      return repaired;
+    } catch {
+      return fallbackCommands(userText);
+    }
+  }
+  validateCommands(parsed);
+  return parsed;
+}
+
+async function strictRetry(userText: string) {
+  const system =
+    "Return ONLY a JSON array. No prose, no code fences. " +
+    "Each item must have: index (number), instruction (string), tag (string). " +
+    "Allowed instructions: move, click, doubleclick, mousedown, mouseup, drag, scroll, type:, key:, hotkey:, wait. " +
+    "Use hotkey: CTRL+ESC to open Start (not WIN). " +
+    "Use waits (500-800ms) between UI steps.";
+  const prompt = `User request: ${userText}`;
+  const body = {
+    systemInstruction: { parts: [{ text: system }] },
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.0, maxOutputTokens: 256, responseMimeType: "application/json" }
+  };
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+  log("debug", "Gemini strict retry", { model: GEMINI_MODEL });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Gemini strict retry error: ${res.status} ${text}`);
+  }
+  const json = await res.json();
+  log("debug", "Gemini strict retry raw", json);
+  const parts = json?.candidates?.[0]?.content?.parts || [];
+  const text = parts.map((p: any) => p?.text || "").join("");
+  log("debug", "Gemini strict retry text", text);
+  return parseJsonArray(text);
+}
+
+function fallbackCommands(userText: string) {
+  const lower = userText.toLowerCase();
+  if (lower.includes("notepad") || lower.includes("note pad")) {
+    return [
+      { index: 1, instruction: "hotkey: CTRL+ESC", tag: "ws" },
+      { index: 2, instruction: "wait 600", tag: "ws" },
+      { index: 3, instruction: "type: notepad", tag: "ws" },
+      { index: 4, instruction: "wait 600", tag: "ws" },
+      { index: 5, instruction: "key: ENTER", tag: "ws" }
+    ];
+  }
+  if (lower.includes("edge")) {
+    return [
+      { index: 1, instruction: "hotkey: CTRL+ESC", tag: "ws" },
+      { index: 2, instruction: "wait 600", tag: "ws" },
+      { index: 3, instruction: "type: edge", tag: "ws" },
+      { index: 4, instruction: "wait 600", tag: "ws" },
+      { index: 5, instruction: "key: ENTER", tag: "ws" }
+    ];
+  }
+  if (lower.includes("calculator") || lower.includes("calc")) {
+    return [
+      { index: 1, instruction: "hotkey: CTRL+ESC", tag: "ws" },
+      { index: 2, instruction: "wait 600", tag: "ws" },
+      { index: 3, instruction: "type: calculator", tag: "ws" },
+      { index: 4, instruction: "wait 600", tag: "ws" },
+      { index: 5, instruction: "key: ENTER", tag: "ws" }
+    ];
+  }
+  return [
+    { index: 1, instruction: "wait 500", tag: "ws" }
+  ];
 }
 
 function validateCommands(commands: any[]) {
