@@ -5,7 +5,6 @@ const PORT = Number(process.env.BACKEND_PORT || 8787);
 const LOCAL_AGENT_WS = process.env.LOCAL_AGENT_WS || "ws://127.0.0.1:8765";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
-const GEMINI_STRICT_JSON = (process.env.GEMINI_STRICT_JSON || "1") !== "0";
 const SCREENSHOT_PATH =
   process.env.SCREENSHOT_PATH || "C:\\temp\\intern-proof.png";
 const LOG_LEVEL = (process.env.LOG_LEVEL || "info").toLowerCase();
@@ -198,29 +197,15 @@ async function generateCommands(userText: string) {
 
   const prompt = `User request: ${userText}`;
 
-  const body: any = {
+  const body = {
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     generationConfig: {
       temperature: 0.2,
       maxOutputTokens: 256,
-      responseMimeType: GEMINI_STRICT_JSON ? "application/json" : undefined
+      responseMimeType: "application/json"
     }
   };
-  if (GEMINI_STRICT_JSON) {
-    body.responseSchema = {
-      type: "ARRAY",
-      items: {
-        type: "OBJECT",
-        properties: {
-          index: { type: "NUMBER" },
-          instruction: { type: "STRING" },
-          tag: { type: "STRING" }
-        },
-        required: ["index", "instruction", "tag"]
-      }
-    };
-  }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
   log("debug", "Gemini request", { model: GEMINI_MODEL });
@@ -382,22 +367,10 @@ async function strictRetry(userText: string) {
     "Use hotkey: CTRL+ESC to open Start. " +
     "Use waits (500-800ms) between UI steps.";
   const prompt = `User request: ${userText}`;
-  const body: any = {
+  const body = {
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     generationConfig: { temperature: 0.0, maxOutputTokens: 256, responseMimeType: "application/json" }
-  };
-  body.responseSchema = {
-    type: "ARRAY",
-    items: {
-      type: "OBJECT",
-      properties: {
-        index: { type: "NUMBER" },
-        instruction: { type: "STRING" },
-        tag: { type: "STRING" }
-      },
-      required: ["index", "instruction", "tag"]
-    }
   };
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
   log("debug", "Gemini strict retry", { model: GEMINI_MODEL });
